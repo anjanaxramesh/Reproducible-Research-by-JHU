@@ -553,7 +553,7 @@ healthPlot <- ggplot(data = aggregateHealth, aes(x = EVENT, y = Total, fill = EV
 print(healthPlot)
 ```
 
-![](figures healthPlot-1.png)<!-- -->
+![add plots](Reproducible Research Course Project 2 - Week 4/figures healthPlot-1.png)
 
 # Question 2 - Across the United States, which types of events have the greatest economic consequences?
 
@@ -575,6 +575,6 @@ economyPlot <- ggplot(data = aggregateEconomy, aes(x = EVENT, y = Total, fill = 
 print(economyPlot)
 ```
 
-![](figures economyPlot-1.png)<!-- -->
+![add plots](Reproducible Research Course Project 2 - Week 4/figures economyPlot-1.png)
 
 **---------------------------------------------------------------------------------------------------**
