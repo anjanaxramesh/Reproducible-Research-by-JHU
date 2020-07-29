@@ -1,0 +1,313 @@
+---
+title: "Reproducible Research Course Project 2"
+author: "Anjana Ramesh"
+date: "7/28/2020"
+output:
+  html_document: 
+    keep_md: yes
+  pdf_document: default
+---
+# **Analysis of the Impact of Different Weather Conditons on Health and the Economy**
+
+# Introduction
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+# Data
+
+The data for this assignment come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size. You can download the file from the course web site.
+
+The events in the database start in the year 1950 and end in November 2011. In the earlier years of the database there are generally fewer events recorded, most likely due to a lack of good records. More recent years should be considered more complete.
+
+## **Assignment**
+
+The basic goal of this assignment is to explore the NOAA Storm Database and answer some basic questions about severe weather events. You must use the database to answer the questions below and show the code for your entire analysis. Your analysis can consist of tables, figures, or other summaries. You may use any R package you want to support your analysis.
+
+**Questions**
+
+Your data analysis must address the following questions:
+
+  - Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+  - Across the United States, which types of events have the greatest economic consequences?
+  
+Consider writing your report as if it were to be read by a government or municipal manager who might be responsible for preparing for severe weather events and will need to prioritize resources for different types of events. However, there is no need to make any specific recommendations in your report.
+
+## **Setting Global Options**
+
+```{r globalOptions}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, fig.width = 10, fig.height = 5,
+                      fig.keep = 'all' ,fig.path = 'figures\ ', dev = 'png')
+```
+
+## **Loading and Examining Data**
+
+```{r stormData}
+# Loading packages
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(plyr)
+
+# Reading the data
+stormData <- read.csv(bzfile("repdata_data_StormData.csv.bz2"))
+
+# Examining dimesions of stormData
+dim(stormData)
+```
+
+```{r}
+# Examining the variables of stormData
+str(stormData)
+```
+
+## **Extracting Variables of Interest**
+
+To analyse the impact of different weather conditions, it is  needful to extract the relevant variable data from the dataset.
+
+- Weather Events Variable 
+  - EVTYPE: type of weather event (TORNADO, FLOOD etc)
+
+- Health variables
+  - FATALITIES: number of deaths
+  - INJURIES: number of injuries
+
+- Economic variables 
+  - PROPDMG: property damage
+  - PROPDMGEXP: units for property damage value
+  - CROPDMG: crop damage
+  - CROPDMGEXP: units for crop damage value
+
+```{r subsetStormData}
+# Extracting the relevant variable data from stormData
+variables <- c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")
+subsetStormData <- stormData[ , variables]
+
+# Viewing the subset 
+str(subsetStormData)
+
+```
+
+## **Transforming and Cleaning the Extracted Variables**
+
+```{r eventType}
+
+# Viewing the types that feature the most in the variable EVTYPE
+sort(table(subsetStormData$EVTYPE), decreasing = TRUE)[1:10]
+
+```
+
+Grouping the types in the variable EVTYPE according to common keywords like HEAT, TORNADO, FLOOD etc-
+
+```{r groupingTypes}
+# Creating a new variable to transform EVTYPE into groups 
+subsetStormData$EVENT <- "OTHER"
+
+# Grouping types in EVTYPE by keywords
+
+subsetStormData$EVENT[grepl("HEAT", subsetStormData$EVTYPE, ignore.case = TRUE)] <- "HEAT"
+subsetStormData$EVENT[grepl("HAIL", subsetStormData$EVTYPE, ignore.case = TRUE)] <- "HAIL"
+subsetStormData$EVENT[grepl("SNOW", subsetStormData$EVTYPE, ignore.case = TRUE)] <- "SNOW"
+subsetStormData$EVENT[grepl("WIND", subsetStormData$EVTYPE, ignore.case = TRUE)] <- "WIND"
+subsetStormData$EVENT[grepl("STORM", subsetStormData$EVTYPE, ignore.case = TRUE)] <- "STORM"
+subsetStormData$EVENT[grepl("TORNADO", subsetStormData$EVTYPE, ignore.case = TRUE)] <- "TORNADO"
+subsetStormData$EVENT[grepl("FLOOD", subsetStormData$EVTYPE, ignore.case = TRUE)] <- "FLOOD"
+subsetStormData$EVENT[grepl("WINTER", subsetStormData$EVTYPE, ignore.case = TRUE)] <- "WINTER"
+subsetStormData$EVENT[grepl("RAIN", subsetStormData$EVTYPE, ignore.case = TRUE)] <- "RAIN"
+
+# Viewing the groups
+sort(table(subsetStormData$EVENT), decreasing = TRUE)[1:10]
+
+```
+
+
+Crop Damage and Property Damage values are defined in exponential terms - 
+
+```{r}
+# Viewing Property Damage
+table(subsetStormData$PROPDMGEXP)
+
+```
+
+```{r}
+# Viewing Crop Damage
+table(subsetStormData$CROPDMGEXP)
+
+```
+
+Creating factor variables to bring the values of damage to the same base (Millions of USD$) -
+
+```{r propDmgValue}
+# Creating new variable to standardise PROPDMGEXP to Millions USD
+subsetStormData$propDmgValue <- 0.000001
+
+# Setting values according to the exponential powers
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="1"] <- 0.00001
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="2"] <- 0.0001
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="3"] <- 0.001
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="4"] <- 0.01
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="5"] <- 0.1
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="6"] <- 1
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="7"] <- 10
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="8"] <- 100
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="B"] <- 1000
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="h"] <- 0.0001
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="H"] <- 0.0001
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="K"] <- 0.001
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="m"] <- 1
+subsetStormData$propDmgValue[subsetStormData$PROPDMGEXP =="M"] <- 1
+
+# Viewing property damage values
+table(subsetStormData$propDmgValue)
+
+```
+
+
+```{r cropDmgValue}
+# Creating a new variable to standardise CROPDMGEXP to Millions USD
+subsetStormData$cropDmgValue <- 0.000001
+
+# Setting values according to the exponential powers
+subsetStormData$cropDmgValue[subsetStormData$CROPDMGEXP =="2"] <- 0.0001
+subsetStormData$cropDmgValue[subsetStormData$CROPDMGEXP =="B"] <- 1000
+subsetStormData$cropDmgValue[subsetStormData$CROPDMGEXP =="k"] <- 0.001
+subsetStormData$cropDmgValue[subsetStormData$CROPDMGEXP =="K"] <- 0.001
+subsetStormData$cropDmgValue[subsetStormData$CROPDMGEXP =="m"] <- 1
+subsetStormData$cropDmgValue[subsetStormData$CROPDMGEXP =="M"] <- 1
+
+# Viewing crop damage values
+table(subsetStormData$cropDmgValue)
+
+```
+
+## **Aggregating Events for Health Variables**
+
+```{r}
+
+# Aggregating fatalities and injuries by type of event 
+aggregateFatalitiesandInjuries <- ddply(subsetStormData, .(EVENT), summarise, 
+                                       Total = sum(FATALITIES + INJURIES, na.rm = TRUE))
+# Changing the col name
+aggregateFatalitiesandInjuries$type <- "Fatalities and Injuries"
+
+aggregateFatalitiesandInjuries
+```
+
+```{r}
+# Aggregating fatalities by type of event 
+aggregateFatalities <- ddply(subsetStormData, .(EVENT), summarise, 
+                                       Total = sum(FATALITIES, na.rm = TRUE))
+# Changing the col name
+aggregateFatalities$type <- "Fatalities"
+
+aggregateFatalities
+```
+
+```{r}
+# Aggregating injuries by type of event 
+aggregateInjuries <- ddply(subsetStormData, .(EVENT), summarise, 
+                                      Total = sum(INJURIES, na.rm = TRUE))
+# Changing the col name
+aggregateInjuries$type <- "Injuries"
+
+aggregateInjuries
+```
+
+
+```{r aggregateHealth}
+# Combining all variables
+aggregateHealth <- rbind(aggregateFatalities, aggregateInjuries)
+
+# Separating Fatalities and Injuries by event
+healthByEvent <- join(aggregateFatalities, aggregateInjuries, by = "EVENT", type = "inner")
+healthByEvent
+
+```
+
+## **Aggregating Events for Economic Variables**
+
+```{r}
+
+# Aggregating property and crop damage by type of event 
+aggregatePropandCropDmg <- ddply(subsetStormData, .(EVENT), summarise, 
+                                       Total = sum(propDmgValue + cropDmgValue, na.rm = TRUE))
+# Changing the col name
+aggregatePropandCropDmg$type <- "Property and Crop Damage"
+
+aggregatePropandCropDmg
+
+```
+
+```{r}
+
+# Aggregating property damage by type of event 
+aggregatePropDmg <- ddply(subsetStormData, .(EVENT), summarise, 
+                                       Total = sum(propDmgValue, na.rm = TRUE))
+# Changing the col name
+aggregatePropDmg$type <- "Property Damage"
+
+aggregatePropDmg
+
+```
+
+```{r}
+# Aggregating crop damage by type of event 
+aggregateCropDmg <- ddply(subsetStormData, .(EVENT), summarise, 
+                                       Total = sum(cropDmgValue, na.rm = TRUE))
+# Changing the col name
+aggregateCropDmg$type <- "Crop Damage"
+
+aggregateCropDmg
+```
+
+```{r aggregatEconomy}
+# Combining all variables
+aggregateEconomy <- rbind(aggregatePropDmg, aggregateCropDmg)
+
+# Separating Fatalities and Injuries by event
+economyByEvent <- join(aggregatePropDmg, aggregateCropDmg, by = "EVENT", type = "inner")
+economyByEvent
+
+```
+
+# **Results**
+
+# Question 1 - Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+```{r healthPlot}
+# Transforming events in aggregateHeath to a factor
+aggregateHealth$EVENT <- as.factor(aggregateHealth$EVENT)
+
+# Plotting into ggplot2
+healthPlot <- ggplot(data = aggregateHealth, aes(x = EVENT, y = Total, fill = EVENT)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  xlab("Events") +
+  ylab("Fatalities and Injuries") +
+  ggtitle("Most Harmful Events in the US with respect to Health") +
+  theme_calc(base_family = "serif")
+
+print(healthPlot)
+```
+
+# Question 2 - Across the United States, which types of events have the greatest economic consequences?
+
+```{r economyPlot}
+# Transforming events in aggregateEconomy to a factor
+aggregateEconomy$EVENT <- as.factor(aggregateEconomy$EVENT)
+
+# Plotting into ggplot2
+economyPlot <- ggplot(data = aggregateEconomy, aes(x = EVENT, y = Total, fill = EVENT)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  xlab("Events") +
+  ylab("Total in Millions of USD of Property and Crop Damage") +
+  ggtitle("Most Harmful Events in the US with respect to Economic Consequences") +
+  theme_calc(base_family = "serif") +
+  scale_fill_calc()
+
+print(economyPlot)
+```
+
+**---------------------------------------------------------------------------------------------------**
